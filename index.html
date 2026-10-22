@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>IPTV Manager Pro</title>
+
+  <!-- PWA Theme Color -->
+  <meta name="theme-color" content="#090d16">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="IPTV Manager">
+
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              purple: '#7c3aed',
+              purpleLight: '#8b5cf6',
+              darkBg: '#090d16',
+              cardBg: '#111827',
+              borderDark: '#1f2937'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Google Font: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Dynamic Web App Manifest Injection -->
+  <script>
+    (function() {
+      const manifestData = {
+        name: "IPTV Manager Pro",
+        short_name: "IPTV Manager",
+        description: "Gestão e Alertas de Vencimentos IPTV",
+        start_url: "./index.html",
+        display: "standalone",
+        background_color: "#090d16",
+        theme_color: "#7c3aed",
+        orientation: "portrait",
+        icons: [
+          {
+            src: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512' fill='%237c3aed'><rect width='512' height='512' rx='128' fill='%23090d16'/><path fill='%23ffffff' d='M128 160h256v192H128z'/><path fill='%237c3aed' d='M160 192h192v128H160z'/></svg>",
+            sizes: "512x512",
+            type: "image/svg+xml",
+            purpose: "any maskable"
+          }
+        ]
+      };
+      const stringManifest = JSON.stringify(manifestData);
+      const blob = new Blob([stringManifest], {type: 'application/json'});
+      const manifestURL = URL.createObjectURL(blob);
+      const manifestLink = document.createElement('link');
+      manifestLink.rel = 'manifest';
+      manifestLink.href = manifestURL;
+      document.head.appendChild(manifestLink);
+    })();
+  </script>
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #090d16;
+      color: #f3f4f6;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.2); }
+      50% { box-shadow: 0 0 16px 3px rgba(245, 158, 11, 0.45); }
+    }
+    .pulse-alert-orange {
+      animation: pulseGlow 2s infinite;
+    }
+
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col pb-20 antialiased selection:bg-purple-600 selection:text-white">
+
+  <!-- Header Superior -->
+  <header class="bg-gray-900/90 backdrop-blur-md border-b border-gray-800/80 sticky top-0 z-30 shadow-md">
+    <div class="max-w-3xl mx-auto px-4 py-3 flex justify-between items-center">
+      <div class="flex items-center space-x-3">
+        <div class="bg-gradient-to-tr from-purple-600 to-indigo-500 p-2.5 rounded-2xl shadow-lg shadow-purple-900/30">
+          <i data-lucide="tv" class="w-5 h-5 text-white"></i>
+        </div>
+        <div>
+          <h1 class="font-bold text-base leading-tight bg-gradient-to-r from-purple-400 via-indigo-300 to-white bg-clip-text text-transparent">
+            IPTV Manager Pro
+          </h1>
+          <p class="text-[11px] text-gray-400 font-medium flex items-center gap-1">
+            <span id="pwaStatusDot" class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
+            <span id="pwaStatusText">Online / PWA Pronto</span>
+          </p>
+        </div>
+      </div>
+
+      <!-- Ações do Header -->
+      <div class="flex items-center space-x-2">
+        <button id="btnInstallPWA" onclick="installPWA()" class="hidden px-2.5 py-1.5 bg-purple-600 hover:bg-purple-500 text-white font-semibold rounded-xl text-xs flex items-center space-x-1 shadow-md transition">
+          <i data-lucide="download-cloud" class="w-4 h-4"></i>
+          <span>Instalar App</span>
+        </button>
+
+        <button id="btnNotify" onclick="requestNotificationPermission()" class="p-2.5 bg-gray-800/80 hover:bg-gray-700 text-gray-300 rounded-xl transition border border-gray-700/60 relative" title="Ativar Notificações">
+          <i data-lucide="bell" class="w-4 h-4"></i>
+          <span id="notifyBadge" class="hidden absolute top-1 right-1 w-2.5 h-2.5 bg-amber-500 rounded-full animate-ping"></span>
+        </button>
+
+        <button onclick="exportCSV()" class="p-2.5 bg-gray-800/80 hover:bg-gray-700 text-emerald-400 rounded-xl transition border border-gray-700/60" title="Exportar Excel (CSV)">
+          <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+        </button>
+
+        <button onclick="exportData()" class="p-2.5 bg-gray-800/80 hover:bg-gray-700 text-gray-300 rounded-xl transition border border-gray-700/60" title="Backup JSON">
+          <i data-lucide="save" class="w-4 h-4"></i>
+        </button>
+        
+        <label class="p-2.5 bg-gray-800/80 hover:bg-gray-700 text-gray-300 rounded-xl transition border border-gray-700/60 cursor-pointer" title="Restaurar Backup">
+          <i data-lucide="upload" class="w-4 h-4"></i>
+          <input type="file" id="importFile" accept=".json" onchange="importData(event)" class="hidden">
+        </label>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-3xl mx-auto px-4 py-5 w-full flex-grow space-y-5">
+
+    <!-- Painel de Métricas -->
+    <section class="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div class="bg-gray-900/90 border border-gray-800 rounded-2xl p-3.5 shadow-sm">
+        <div class="flex justify-between items-center">
+          <span class="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Total Ativo</span>
+          <div class="p-1.5 bg-purple-500/10 text-purple-400 rounded-lg">
+            <i data-lucide="dollar-sign" class="w-3.5 h-3.5"></i>
+          </div>
+        </div>
+        <p id="dashTotalVal" class="text-xl font-extrabold mt-1.5 text-white">R$ 0,00</p>
+        <span id="dashTotalCount" class="text-[10px] text-gray-400 font-medium">0 clientes</span>
+      </div>
+
+      <div class="bg-amber-950/20 border border-amber-500/30 rounded-2xl p-3.5 shadow-sm">
+        <div class="flex justify-between items-center">
+          <span class="text-[11px] font-semibold text-amber-400 uppercase tracking-wider">≤ 2 Dias</span>
+          <div class="p-1.5 bg-amber-500/20 text-amber-400 rounded-lg">
+            <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+          </div>
+        </div>
+        <p id="dashAlert2DaysCount" class="text-xl font-extrabold mt-1.5 text-amber-400">0</p>
+        <span id="dashAlert2DaysVal" class="text-[10px] text-amber-300/80 font-medium">R$ 0,00</span>
+      </div>
+
+      <div class="bg-rose-950/20 border border-rose-500/30 rounded-2xl p-3.5 shadow-sm">
+        <div class="flex justify-between items-center">
+          <span class="text-[11px] font-semibold text-rose-400 uppercase tracking-wider">Vencidos</span>
+          <div class="p-1.5 bg-rose-500/20 text-rose-400 rounded-lg">
+            <i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i>
+          </div>
+        </div>
+        <p id="dashVencidosCount" class="text-xl font-extrabold mt-1.5 text-rose-400">0</p>
+        <span id="dashVencidosVal" class="text-[10px] text-rose-300/80 font-medium">R$ 0,00</span>
+      </div>
+
+      <div class="bg-emerald-950/20 border border-emerald-500/30 rounded-2xl p-3.5 shadow-sm">
+        <div class="flex justify-between items-center">
+          <span class="text-[11px] font-semibold text-emerald-400 uppercase tracking-wider">Em Dia</span>
+          <div class="p-1.5 bg-emerald-500/20 text-emerald-400 rounded-lg">
+            <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
+          </div>
+        </div>
+        <p id="dashEmDiaCount" class="text-xl font-extrabold mt-1.5 text-emerald-400">0</p>
+        <span id="dashEmDiaVal" class="text-[10px] text-emerald-300/80 font-medium">R$ 0,00</span>
+      </div>
+    </section>
+
+    <!-- Pesquisa e Botões -->
+    <section class="space-y-3">
+      <div class="flex flex-col sm:flex-row gap-2.5">
+        <div class="relative flex-1">
+          <i data-lucide="search" class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"></i>
+          <input type="text" id="searchInput" oninput="render()" placeholder="Pesquisar por nome ou telefone..." 
+                 class="w-full bg-gray-900 border border-gray-800 rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-purple-500 transition shadow-inner">
+        </div>
+
+        <button onclick="openModal()" class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-semibold px-4 py-2.5 rounded-xl flex items-center justify-center space-x-2 text-xs sm:text-sm shadow-lg shadow-purple-900/20 transition active:scale-95">
+          <i data-lucide="user-plus" class="w-4 h-4"></i>
+          <span>Novo Cliente</span>
+        </button>
+      </div>
+
+      <div class="flex items-center space-x-2 overflow-x-auto pb-1 text-xs no-scrollbar">
+        <button onclick="setFilter('todos')" id="filter-todos" class="filter-btn px-3.5 py-1.5 rounded-xl bg-purple-600 text-white font-semibold transition whitespace-nowrap shadow-sm">Todos</button>
+        <button onclick="setFilter('alerta2dias')" id="filter-alerta2dias" class="filter-btn px-3.5 py-1.5 rounded-xl bg-gray-900 hover:bg-gray-800 text-amber-400 font-medium transition whitespace-nowrap border border-amber-500/20">🚨 Vencendo ≤ 2 Dias</button>
+        <button onclick="setFilter('vencidos')" id="filter-vencidos" class="filter-btn px-3.5 py-1.5 rounded-xl bg-gray-900 hover:bg-gray-800 text-rose-400 font-medium transition whitespace-nowrap border border-rose-500/20">🔴 Vencidos</button>
+        <button onclick="setFilter('emdia')" id="filter-emdia" class="filter-btn px-3.5 py-1.5 rounded-xl bg-gray-900 hover:bg-gray-800 text-emerald-400 font-medium transition whitespace-nowrap border border-emerald-500/20">🟢 Em Dia</button>
+      </div>
+    </section>
+
+    <!-- Lista de Clientes -->
+    <section id="clientList" class="space-y-3">
+      <!-- Inserido dinamicamente via JS -->
+    </section>
+
+    <!-- Estado Vazio -->
+    <div id="emptyState" class="hidden text-center py-10 px-4 bg-gray-900/40 border border-gray-800 rounded-2xl">
+      <div class="inline-flex p-3 rounded-2xl bg-gray-800/80 text-gray-400 mb-2">
+        <i data-lucide="users" class="w-6 h-6"></i>
+      </div>
+      <h3 class="text-gray-300 font-semibold text-sm">Nenhum cliente encontrado</h3>
+      <p class="text-xs text-gray-500 mt-1">Altere o filtro de pesquisa ou restaure os dados originais.</p>
+      <button onclick="resetToInitialExcelData()" class="mt-4 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-purple-400 text-xs font-semibold rounded-xl border border-gray-700 transition">
+        Restaurar Tabela Original
+      </button>
+    </div>
+
+  </main>
+
+  <!-- Modal Cadastro / Edição -->
+  <div id="clientModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-md p-5 shadow-2xl space-y-4">
+      <div class="flex justify-between items-center border-b border-gray-800 pb-3">
+        <h3 id="modalTitle" class="font-bold text-gray-100 text-sm flex items-center space-x-2">
+          <i data-lucide="user" class="w-4 h-4 text-purple-400"></i>
+          <span>Novo Cliente</span>
+        </h3>
+        <button onclick="closeModal()" class="text-gray-400 hover:text-white p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="clientForm" onsubmit="saveClient(event)" class="space-y-3">
+        <input type="hidden" id="clientId">
+
+        <div>
+          <label class="block text-xs font-medium text-gray-400 mb-1">Nome do Cliente *</label>
+          <input type="text" id="clientName" required placeholder="Ex: ANSELMO" 
+                 class="w-full bg-gray-950 border border-gray-800 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-gray-100 focus:outline-none focus:border-purple-500 transition">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-gray-400 mb-1">Data Vencimento *</label>
+            <input type="date" id="clientDueDate" required 
+                   class="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs sm:text-sm text-gray-100 focus:outline-none focus:border-purple-500 transition">
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-gray-400 mb-1">Valor (R$) *</label>
+            <input type="number" id="clientValue" step="0.01" required placeholder="10.00" 
+                   class="w-full bg-gray-950 border border-gray-800 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-gray-100 focus:outline-none focus:border-purple-500 transition">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-gray-400 mb-1">Telefone / WhatsApp (DDD)</label>
+          <input type="tel" id="clientPhone" placeholder="Ex: 5511999998888" 
+                 class="w-full bg-gray-950 border border-gray-800 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-gray-100 focus:outline-none focus:border-purple-500 transition">
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-gray-400 mb-1">Observação (App / Dispositivo)</label>
+          <textarea id="clientNotes" rows="2" placeholder="Ex: TV Box, Smart TV..." 
+                    class="w-full bg-gray-950 border border-gray-800 rounded-xl px-3.5 py-2 text-xs text-gray-100 focus:outline-none focus:border-purple-500 transition"></textarea>
+        </div>
+
+        <div class="flex justify-end space-x-2 pt-3 border-t border-gray-800">
+          <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-xl text-gray-400 hover:bg-gray-800 text-xs font-semibold transition">
+            Cancelar
+          </button>
+          <button type="submit" class="px-5 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-purple-900/30 transition">
+            Salvar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast Notificação Visual -->
+  <div id="toast" class="fixed bottom-5 right-5 bg-gray-800 text-gray-100 border border-gray-700 px-4 py-3 rounded-2xl shadow-2xl flex items-center space-x-3 transition-all duration-300 translate-y-20 opacity-0 z-50 pointer-events-none">
+    <div id="toastIcon" class="text-purple-400">
+      <i data-lucide="check-circle" class="w-5 h-5"></i>
+    </div>
+    <span id="toastMsg" class="text-xs font-medium">Operação realizada com sucesso</span>
+  </div>
+
+  <script>
+    let clients = [];
+    let currentFilter = 'todos';
+    let deferredPrompt = null;
+
+    // Service Worker Inline PWA para suporte Offline
+    if ('serviceWorker' in navigator) {
+      const swCode = `
+        const CACHE_NAME = 'iptv-gh-pages-v1';
+        self.addEventListener('install', (e) => self.skipWaiting());
+        self.addEventListener('activate', (e) => e.waitUntil(clients.claim()));
+        self.addEventListener('fetch', (e) => {
+          e.respondWith(
+            fetch(e.request).catch(() => caches.match(e.request))
+          );
+        });
+      `;
+      const blob = new Blob([swCode], { type: 'text/javascript' });
+      const swUrl = URL.createObjectURL(blob);
+      navigator.serviceWorker.register(swUrl).catch(err => console.log("SW PWA Error:", err));
+    }
+
+    // Evento de Instalação PWA
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      const btn = document.getElementById('btnInstallPWA');
+      if (btn) btn.classList.remove('hidden');
+    });
+
+    function installPWA() {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then((choiceResult) => {
+          if (choiceResult.outcome === 'accepted') {
+            showToast('App instalado com sucesso!');
+          }
+          deferredPrompt = null;
+          document.getElementById('btnInstallPWA').classList.add('hidden');
+        });
+      }
+    }
+
+    window.onload = function() {
+      lucide.createIcons();
+      loadClients();
+      checkDueDateNotifications(false);
+
+      window.addEventListener('online', updateOnlineStatus);
+      window.addEventListener('offline', updateOnlineStatus);
+    };
+
+    function updateOnlineStatus() {
+      const dot = document.getElementById('pwaStatusDot');
+      const text = document.getElementById('pwaStatusText');
+      if (navigator.onLine) {
+        dot.className = "w-2 h-2 rounded-full bg-emerald-500 inline-block";
+        text.innerText = "Online / PWA Ativo";
+      } else {
+        dot.className = "w-2 h-2 rounded-full bg-amber-500 inline-block";
+        text.innerText = "Modo Offline Ativo";
+      }
+    }
+
+    // Carregar do LocalStorage ou Carregar Dados Originais da Sua Imagem
+    function loadClients() {
+      const stored = localStorage.getItem('iptv_manager_ghpages_data');
+      if (stored) {
+        try {
+          clients = JSON.parse(stored);
+        } catch (e) {
+          resetToInitialExcelData();
+        }
+      } else {
+        resetToInitialExcelData();
+      }
+      render();
+    }
+
+    function resetToInitialExcelData() {
+      clients = [
+        { id: "1", name: "ANSELMO", dueDate: "2026-10-25", value: 5.00, phone: "", notes: "" },
+        { id: "2", name: "NORMA", dueDate: "2026-11-03", value: 5.00, phone: "", notes: "" },
+        { id: "3", name: "MARTA", dueDate: "2026-11-12", value: 5.00, phone: "", notes: "" },
+        { id: "4", name: "FELIPE", dueDate: "2026-11-05", value: 10.00, phone: "", notes: "" },
+        { id: "5", name: "CAMILLY", dueDate: "2026-11-14", value: 10.00, phone: "", notes: "" },
+        { id: "6", name: "LEANDRO", dueDate: "2026-11-13", value: 10.00, phone: "", notes: "" },
+        { id: "7", name: "ALESSANDRA", dueDate: "2026-11-16", value: 10.00, phone: "", notes: "" },
+        { id: "8", name: "JUNIOR ALLEDI", dueDate: "2026-11-21", value: 5.00, phone: "", notes: "" },
+        { id: "9", name: "VANDIN", dueDate: "2026-11-22", value: 10.00, phone: "", notes: "" },
+        { id: "10", name: "LÉO - DALINO", dueDate: "2026-11-22", value: 10.00, phone: "", notes: "" }
+      ];
+      saveToStorage();
+    }
+
+    function saveToStorage() {
+      localStorage.setItem('iptv_manager_ghpages_data', JSON.stringify(clients));
+    }
+
+    // Renderização dos cards dos clientes
+    function render() {
+      const search = document.getElementById('searchInput').value.toLowerCase().trim();
+      const listEl = document.getElementById('clientList');
+      const emptyEl = document.getElementById('emptyState');
+
+      listEl.innerHTML = '';
+
+      let filtered = clients.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+
+      if (search) {
+        filtered = filtered.filter(c => 
+          c.name.toLowerCase().includes(search) || 
+          (c.phone && c.phone.includes(search))
+        );
+      }
+
+      filtered = filtered.filter(c => {
+        const days = calculateDaysRemaining(c.dueDate);
+        if (currentFilter === 'alerta2dias') return days >= 0 && days <= 2;
+        if (currentFilter === 'vencidos') return days < 0;
+        if (currentFilter === 'emdia') return days > 2;
+        return true;
+      });
+
+      updateDashboard();
+
+      if (filtered.length === 0) {
+        emptyEl.classList.remove('hidden');
+        return;
+      } else {
+        emptyEl.classList.add('hidden');
+      }
+
+      filtered.forEach(client => {
+        const days = calculateDaysRemaining(client.dueDate);
+        
+        let badgeStyle = '';
+        let badgeText = '';
+        let cardBorder = 'border-gray-800';
+
+        // Regras de Alerta para Vencimento <= 2 dias
+        if (days < 0) {
+          badgeStyle = 'bg-rose-500/15 text-rose-400 border-rose-500/30';
+          badgeText = `🔴 Vencido (${Math.abs(days)}d atrás)`;
+          cardBorder = 'border-rose-500/40 bg-rose-950/10';
+        } else if (days <= 2) {
+          badgeStyle = 'bg-amber-500/20 text-amber-300 border-amber-500/40 font-bold';
+          if (days === 0) badgeText = '🚨 Vence HOJE!';
+          else if (days === 1) badgeText = '🚨 Vence AMANHÃ!';
+          else badgeText = `🚨 Vence em 2 dias`;
+          cardBorder = 'border-amber-500/50 bg-amber-950/10 pulse-alert-orange';
+        } else {
+          badgeStyle = 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30';
+          badgeText = `🟢 Em dia (${days} dias)`;
+        }
+
+        const dateFormatted = formatDateBR(client.dueDate);
+        const valFormatted = client.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+        const card = document.createElement('div');
+        card.className = `bg-gray-900 border ${cardBorder} rounded-2xl p-3.5 shadow-sm transition flex flex-col md:flex-row justify-between items-start md:items-center gap-3`;
+
+        card.innerHTML = `
+          <div class="space-y-1 w-full md:w-auto">
+            <div class="flex items-center space-x-2 flex-wrap gap-y-1">
+              <span class="font-bold text-gray-100 text-sm md:text-base">${escapeHtml(client.name)}</span>
+              <span class="px-2.5 py-0.5 text-[10px] md:text-xs font-semibold border rounded-full ${badgeStyle}">
+                ${badgeText}
+              </span>
+            </div>
+            <div class="flex items-center space-x-3 text-xs text-gray-400">
+              <span class="flex items-center"><i data-lucide="calendar" class="w-3.5 h-3.5 mr-1 text-purple-400"></i>Venc: ${dateFormatted}</span>
+              <span class="font-bold text-gray-200">${valFormatted}</span>
+              ${client.phone ? `<span class="flex items-center text-gray-400"><i data-lucide="phone" class="w-3 h-3 mr-1"></i>${client.phone}</span>` : ''}
+            </div>
+            ${client.notes ? `<p class="text-[11px] text-gray-500 italic mt-0.5">${escapeHtml(client.notes)}</p>` : ''}
+          </div>
+
+          <div class="flex items-center space-x-2 w-full md:w-auto justify-end border-t md:border-t-0 border-gray-800/80 pt-2.5 md:pt-0">
+            <button onclick="sendWhatsApp('${client.id}')" class="px-2.5 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 rounded-xl transition border border-emerald-500/30 flex items-center space-x-1 text-xs font-semibold" title="Cobrar no WhatsApp">
+              <i data-lucide="message-square" class="w-3.5 h-3.5"></i>
+              <span>WhatsApp</span>
+            </button>
+
+            <button onclick="renewSubscription('${client.id}')" class="px-2.5 py-1.5 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 rounded-xl transition border border-purple-500/30 flex items-center space-x-1 text-xs font-semibold" title="Renovar +1 Mês">
+              <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
+              <span>+1 Mês</span>
+            </button>
+
+            <button onclick="editClient('${client.id}')" class="p-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl transition border border-gray-700" title="Editar">
+              <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+            </button>
+
+            <button onclick="deleteClient('${client.id}')" class="p-1.5 bg-gray-800 hover:bg-rose-950/40 text-gray-400 hover:text-rose-400 rounded-xl transition border border-gray-700" title="Eliminar">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        `;
+
+        listEl.appendChild(card);
+      });
+
+      lucide.createIcons();
+    }
+
+    // Métricas topo
+    function updateDashboard() {
+      let totalVal = 0, alert2DaysCount = 0, alert2DaysVal = 0, vencidosCount = 0, vencidosVal = 0, emDiaCount = 0, emDiaVal = 0;
+
+      clients.forEach(c => {
+        const val = parseFloat(c.value) || 0;
+        totalVal += val;
+
+        const days = calculateDaysRemaining(c.dueDate);
+
+        if (days < 0) {
+          vencidosCount++;
+          vencidosVal += val;
+        } else if (days <= 2) {
+          alert2DaysCount++;
+          alert2DaysVal += val;
+        } else {
+          emDiaCount++;
+          emDiaVal += val;
+        }
+      });
+
+      document.getElementById('dashTotalVal').innerText = totalVal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+      document.getElementById('dashTotalCount').innerText = `${clients.length} cliente(s)`;
+
+      document.getElementById('dashAlert2DaysCount').innerText = alert2DaysCount;
+      document.getElementById('dashAlert2DaysVal').innerText = alert2DaysVal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+      document.getElementById('dashVencidosCount').innerText = vencidosCount;
+      document.getElementById('dashVencidosVal').innerText = vencidosVal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+      document.getElementById('dashEmDiaCount').innerText = emDiaCount;
+      document.getElementById('dashEmDiaVal').innerText = emDiaVal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    }
+
+    // Ações de Form
+    function openModal(client = null) {
+      const modal = document.getElementById('clientModal');
+      const title = document.getElementById('modalTitle');
+
+      if (client) {
+        title.innerHTML = `<i data-lucide="edit-3" class="w-4 h-4 text-purple-400"></i><span>Editar Cliente</span>`;
+        document.getElementById('clientId').value = client.id;
+        document.getElementById('clientName').value = client.name;
+        document.getElementById('clientDueDate').value = client.dueDate;
+        document.getElementById('clientValue').value = client.value;
+        document.getElementById('clientPhone').value = client.phone || '';
+        document.getElementById('clientNotes').value = client.notes || '';
+      } else {
+        title.innerHTML = `<i data-lucide="user-plus" class="w-4 h-4 text-purple-400"></i><span>Novo Cliente</span>`;
+        document.getElementById('clientForm').reset();
+        document.getElementById('clientId').value = '';
+        document.getElementById('clientDueDate').value = getTodayString();
+        document.getElementById('clientValue').value = '10.00';
+      }
+
+      modal.classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closeModal() {
+      document.getElementById('clientModal').classList.add('hidden');
+    }
+
+    function saveClient(e) {
+      e.preventDefault();
+      const id = document.getElementById('clientId').value;
+      const name = document.getElementById('clientName').value.trim();
+      const dueDate = document.getElementById('clientDueDate').value;
+      const value = parseFloat(document.getElementById('clientValue').value) || 0;
+      const phone = document.getElementById('clientPhone').value.replace(/\D/g, '');
+      const notes = document.getElementById('clientNotes').value.trim();
+
+      if (id) {
+        const idx = clients.findIndex(c => c.id === id);
+        if (idx !== -1) {
+          clients[idx] = { id, name, dueDate, value, phone, notes };
+          showToast('Cliente atualizado com sucesso!');
+        }
+      } else {
+        clients.push({ id: Date.now().toString(), name, dueDate, value, phone, notes });
+        showToast('Novo cliente adicionado!');
+      }
+
+      saveToStorage();
+      closeModal();
+      render();
+    }
+
+    // Renovar +1 Mês
+    function renewSubscription(id) {
+      const client = clients.find(c => c.id === id);
+      if (client) {
+        const [year, month, day] = client.dueDate.split('-').map(Number);
+        const d = new Date(year, month - 1, day);
+        
+        d.setMonth(d.getMonth() + 1);
+
+        const newYear = d.getFullYear();
+        const newMonth = String(d.getMonth() + 1).padStart(2, '0');
+        const newDay = String(d.getDate()).padStart(2, '0');
+
+        client.dueDate = `${newYear}-${newMonth}-${newDay}`;
+
+        saveToStorage();
+        render();
+        showToast(`Renovado +1 mês! Novo vencimento: ${formatDateBR(client.dueDate)}`);
+      }
+    }
+
+    // Cobrança WhatsApp
+    function sendWhatsApp(id) {
+      const client = clients.find(c => c.id === id);
+      if (!client) return;
+
+      const dateStr = formatDateBR(client.dueDate);
+      const valStr = client.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+      const days = calculateDaysRemaining(client.dueDate);
+
+      let statusContext = `vence no dia ${dateStr}`;
+      if (days === 0) statusContext = `vence HOJE (${dateStr})`;
+      if (days < 0) statusContext = `venceu no dia ${dateStr}`;
+
+      const text = `Olá *${client.name}*, tudo bem? 👋\n\nLembrete do seu plano IPTV que ${statusContext}.\n\n*Valor:* ${valStr}\n\nDeseja realizar a renovação mensal? Aguardo o seu retorno! 📺✨`;
+
+      const encodedText = encodeURIComponent(text);
+      const url = client.phone 
+        ? `https://wa.me/${client.phone}?text=${encodedText}`
+        : `https://wa.me/?text=${encodedText}`;
+
+      window.open(url, '_blank');
+    }
+
+    function editClient(id) {
+      const client = clients.find(c => c.id === id);
+      if (client) openModal(client);
+    }
+
+    function deleteClient(id) {
+      const client = clients.find(c => c.id === id);
+      if (client && confirm(`Remover o cliente "${client.name}"?`)) {
+        clients = clients.filter(c => c.id !== id);
+        saveToStorage();
+        render();
+        showToast('Cliente removido.');
+      }
+    }
+
+    // Notificações Locais
+    function requestNotificationPermission() {
+      if (!("Notification" in window)) {
+        showToast("Navegador não suporta Notificações.");
+        return;
+      }
+
+      Notification.requestPermission().then(permission => {
+        if (permission === "granted") {
+          document.getElementById('notifyBadge').classList.remove('hidden');
+          showToast("Notificações do PWA Ativadas!");
+          checkDueDateNotifications(true);
+        } else {
+          showToast("Permissão de Notificação negada.");
+        }
+      });
+    }
+
+    function checkDueDateNotifications(userTriggered = false) {
+      if (!("Notification" in window) || Notification.permission !== "granted") return;
+
+      const urgentClients = clients.filter(c => {
+        const days = calculateDaysRemaining(c.dueDate);
+        return days >= 0 && days <= 2;
+      });
+
+      if (urgentClients.length > 0 && userTriggered) {
+        new Notification("🚨 Alerta IPTV Manager", {
+          body: `Você possui ${urgentClients.length} cliente(s) vencendo em 2 dias ou menos!`,
+          icon: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512' fill='%237c3aed'><rect width='512' height='512' rx='128' fill='%23090d16'/><path fill='%23ffffff' d='M128 160h256v192H128z'/></svg>"
+        });
+      }
+    }
+
+    // Exportar CSV / Excel
+    function exportCSV() {
+      let csvContent = "data:text/csv;charset=utf-8,IPTV,VENC,VALOR,TELEFONE,OBSERVACAO\n";
+      clients.forEach(c => {
+        const dateBR = formatDateBR(c.dueDate);
+        csvContent += `"${c.name}","${dateBR}","R$ ${c.value.toFixed(2)}","${c.phone || ''}","${c.notes || ''}"\n`;
+      });
+
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `iptv_clientes_${getTodayString()}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      showToast('Planilha CSV gerada!');
+    }
+
+    // Backup JSON
+    function exportData() {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(clients, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `iptv_backup_${getTodayString()}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      showToast('Backup JSON gravado!');
+    }
+
+    function importData(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const imported = JSON.parse(e.target.result);
+          if (Array.isArray(imported)) {
+            clients = imported;
+            saveToStorage();
+            render();
+            showToast('Backup restaurado!');
+          }
+        } catch (err) {
+          alert('Arquivo de backup inválido.');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    // Auxiliares
+    function setFilter(filter) {
+      currentFilter = filter;
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('bg-purple-600', 'text-white');
+        btn.classList.add('bg-gray-900', 'text-gray-400');
+      });
+
+      const activeBtn = document.getElementById(`filter-${filter}`);
+      if (activeBtn) {
+        activeBtn.classList.remove('bg-gray-900', 'text-gray-400');
+        activeBtn.classList.add('bg-purple-600', 'text-white');
+      }
+
+      render();
+    }
+
+    function calculateDaysRemaining(dueDateStr) {
+      if (!dueDateStr) return 999;
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+      const [year, month, day] = dueDateStr.split('-').map(Number);
+      const dueDate = new Date(year, month - 1, day);
+
+      const diffMs = dueDate - today;
+      return Math.round(diffMs / (1000 * 60 * 60 * 24));
+    }
+
+    function getTodayString() {
+      const now = new Date();
+      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    }
+
+    function formatDateBR(dateStr) {
+      if (!dateStr) return '';
+      const [year, month, day] = dateStr.split('-');
+      return `${day}/${month}/${year}`;
+    }
+
+    function escapeHtml(text) {
+      return text ? text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") : '';
+    }
+
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      const msg = document.getElementById('toastMsg');
+      msg.innerText = message;
+
+      toast.classList.remove('translate-y-20', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+
+      setTimeout(() => {
+        toast.classList.remove('translate-y-0', 'opacity-100');
+        toast.classList.add('translate-y-20', 'opacity-0');
+      }, 3000);
+    }
+  </script>
+</body>
+</html>
+```
+
+---
+
+### Como publicar no GitHub Pages em 3 passos:
+
+1. **Crie um Repositório no GitHub**:
+   * Vá em [github.com/new](https://github.com/new) e crie um repositório (ex: `meu-iptv`).
+
+2. **Envie o arquivo `index.html`**:
+   * Faça o upload do arquivo `index.html` gerado para a raiz desse repositório.
+
+3. **Ative o GitHub Pages**:
+   * No seu repositório, vá em **Settings** (Configurações) > **Pages** (no menu esquerdo).
+   * Em **Source** / **Branch**, selecione `main` (ou `master`) e clique em **Save**.
+   * Em cerca de 1 minuto, o GitHub te dará um link com HTTPS: `https://seu-usuario.github.io/meu-iptv/`.
+
+Acesse esse link no seu celular e o botão **Instalar App** estará totalmente funcional!
